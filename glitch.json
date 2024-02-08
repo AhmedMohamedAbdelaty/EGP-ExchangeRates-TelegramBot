@@ -1,0 +1,4 @@
+{
+    "install": "echo 'We Are Ready!'",
+    "start": "bash start.sh"
+  }
