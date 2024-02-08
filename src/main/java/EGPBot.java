@@ -12,12 +12,12 @@ public class EGPBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "EGP_Exchange_Bot";
+        return "randombot_test_bot";
     }
 
     @Override
     public String getBotToken() {
-        return "6927456802:AAF3qArY2h2zkieh0ietk8uB_gSGuBWayBE";
+        return "6474394117:AAFotH30ZxmR_TRk1wvSicsX9oW9fKdSjks";
     }
 
     @Override
