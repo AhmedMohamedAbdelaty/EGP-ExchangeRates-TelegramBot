@@ -1,7 +1,4 @@
-# README.md
-
-```markdown
-# EGP Exchange Bot
+## EGP Exchange Rate in the Black Market Bot
 
 EGP Exchange Bot is a Telegram bot that scrapes the black market price of the Egyptian Pound (EGP) and sends it to the user. The bot is written in Java and uses the Telegram Bot API and Jsoup for web scraping.
 
@@ -38,8 +35,6 @@ Contributions are welcome. Please feel free to submit a pull request or open an 
 
 ## Acknowledgements
 
-```markdown
 - [Telegram Bot API](https://core.telegram.org/bots/api)
 - [Jsoup](https://jsoup.org/)
 - [Glitch](https://glitch.com/)
-```
