@@ -26,9 +26,7 @@ Currently, the bot sends the price of EGP when the user sends anything to the bo
 
 ## Demo
 
-<video align="center" width="100%" controls>
-    <source src="screenshot/screenshot.mp4" type="video/mp4">
-</video>
+https://github.com/AhmedMohamedAbdelaty/EGPBot/assets/73834838/45cfcf0b-391f-4681-ade7-825b782e6c15
 
 ## Future Work
 
