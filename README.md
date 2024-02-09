@@ -1,3 +1,11 @@
+<div align="center">
+<a href="https://techforpalestine.org/learn-more">
+  <img src="https://raw.githubusercontent.com/Safouene1/support-palestine-banner/master/StandWithPalestine.svg" alt="StandWithPalestine">
+</a>
+
+<a align="center" href="https://hits.sh/github.com/AhmedMohamedAbdelaty/EGP-BlackMarket-TelegramBot/"><img alt="Hits" src="https://hits.sh/github.com/AhmedMohamedAbdelaty/EGP-BlackMarket-TelegramBot.svg?style=for-the-badge&label=Views"/></a>
+</div>
+
 ## EGP Exchange Rate in the Black Market Bot
 
 EGP Exchange Bot is a Telegram bot that scrapes the black market price of the Egyptian Pound (EGP) and sends it to the user. The bot was originally written in Java and used the Telegram Bot API and Jsoup for web scraping. However, due to deployment limitations on Glitch, the bot was rewritten in JavaScript using the Grammy library and deployed on Cloudflare Workers.
