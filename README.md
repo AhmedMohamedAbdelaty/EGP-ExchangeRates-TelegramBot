@@ -71,6 +71,9 @@ https://github.com/AhmedMohamedAbdelaty/EGPBot/assets/73834838/45cfcf0b-391f-468
 - Add support for other currencies.
 - Add commands to the bot for better interaction.
 
+## Reflections and Learning
+Currently, the bot is functioning as expected, even though the deployment project isn't in Java. This doesn't concern me, as the primary purpose of this project was to satisfy my curiosity about how Telegram bots are created and deployed. It has been a significant learning experience for me.
+
 ## Contributing
 
 Contributions are welcome. Please feel free to submit a pull request or open an issue.
