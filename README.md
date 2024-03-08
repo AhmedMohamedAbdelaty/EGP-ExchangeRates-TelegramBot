@@ -34,6 +34,29 @@ The bot is deployed on the Cloudflare Workers platform. You can interact with it
 
 You can find the deployment guide [here](https://grammy.dev/hosting/cloudflare-workers-nodejs).
 
+### Setting Up Your Bot Token
+
+To set up your bot token, follow these steps:
+
+1. Create a `.env` file in the root directory of your project.
+
+2. In the `.env` file, add your bot token like this:
+
+    ```env
+    BOT_TOKEN=YourBotTokenHere
+    ```
+
+    Replace `YourBotTokenHere` with the token you received from the BotFather on Telegram.
+
+3. The bot token is now stored in an environment variable and can be accessed in your code like this:
+
+    ```javascript
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    ```
+
+    This line of code retrieves the bot token from the environment variables and assigns it to the `BOT_TOKEN` constant.
+
+Remember to add the `.env` file to your `.gitignore` file to prevent it from being committed to your repository. This is important to keep your bot token secure.
 ## Demo Video
 
 https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot/assets/73834838/0696ef3b-2c3a-409a-a7ca-87891d42789f
