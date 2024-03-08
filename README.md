@@ -4,92 +4,56 @@
 </a>
 
 <a align="center" href="https://hits.sh/github.com/AhmedMohamedAbdelaty/EGP-BlackMarket-TelegramBot/"><img alt="Hits" src="https://hits.sh/github.com/AhmedMohamedAbdelaty/EGP-BlackMarket-TelegramBot.svg?style=for-the-badge&label=Views"/></a>
+
 </div>
 
-## EGP Exchange Rate in the Black Market Bot
+## EGP Exchange Rates
 
-EGP Exchange Bot is a Telegram bot that scrapes the black market price of the Egyptian Pound (EGP) and sends it to the user. The bot was originally written in Java and used the Telegram Bot API and Jsoup for web scraping. However, due to deployment limitations on Glitch, the bot was rewritten in JavaScript using the Grammy library and deployed on Cloudflare Workers.
+EGP Exchange Bot is a Telegram bot that provides users with financial information. It retrieves and sends official bank and black market exchange rates of the Egyptian Pound (EGP) against various currencies, as well as current gold prices.
 
-## Project Structure
+You can interact with the bot using this link: [EGP Exchange Bot](https://t.me/EGP_Exchange_Bot)
 
-The project consists of the following main files:
+## Features of the Bot
 
-- `EGPBot.java`: This is the main bot class that extends `TelegramLongPollingBot`. It handles updates received from users and sends back the scraped EGP price.
+1. **Currency Rates**: The bot provides the latest currency rates for the Egyptian pound in both banks and the black market. It supports multiple currencies including USD, EUR, GBP, SAR, AED, and KWD.
 
-- `Main.java`: This is the entry point of the application. It registers the bot to the Telegram Bot API.
+2. **Gold Prices**: The bot fetches the latest gold prices. It supports multiple types of gold including 24k, 21k, 18k, 22k, Gold Ounce, and Gold Pound (Coin).
 
-- `pom.xml`: This is the Maven Project Object Model file. It contains the project and configuration details used by Maven to build the project.
+3. **Currency Conversion**: The bot provides a currency conversion feature. Users can convert between different currencies.
 
-- `start.sh`: This is a shell script that compiles the Java files and runs the main class (needed for Glitch).
+4. **Interactive Menus**: The bot uses interactive menus to guide the user through its features. It supports multiple commands including "start", "currency rates", "specific currency rate", "gold prices", and "currency conversion".
 
-- `glitch.json`: This file is used by the Glitch platform to install and start the bot.
+5. **Error Handling**: The bot has robust error handling. If it fails to fetch the latest data, it will return the last successfully fetched data.
 
-## JavaScript Version
+6. **Localization**: The bot supports Arabic language for its interface and responses.
 
-Due to limitations with the Glitch platform, the bot was rewritten in JavaScript using the Grammy library and deployed on Cloudflare Workers. The bot should work 24/7 and the code is as follows:
-
-```javascript
-import { Bot, webhookCallback } from "grammy";
-const cheerio = require("cheerio");
-
-const BOT_TOKEN = "YOUR_BOT_TOKEN";
-
-const bot = new Bot(BOT_TOKEN);
-
-bot.on("message", async (ctx) => {
-  try {
-    const response = await fetch(
-      "https://xrate.me/en/currency/usd-to-egp/black"
-    );
-    const body = await response.text();
-    const $ = cheerio.load(body);
-
-    const Buy = $(".fw-bolder.margin-me-4").text();
-    const Sell = $(".mx-1.text-black").text();
-
-    await ctx.reply(`سعر الدولار في السوق السوداء\n
-    شراء: ${Buy} جنية \n
-    بيع: ${Sell} جنية \n
-    ّ`);
-  } catch (error) {
-    console.error(error);
-    await ctx.reply("Could not retrieve the data");
-  }
-});
-
-addEventListener("fetch", webhookCallback(bot, "cloudflare"));
-```
-
-You can find the deployment guide [here](https://grammy.dev/hosting/cloudflare-workers-nodejs).
 
 ## Deployment
 
 The bot is deployed on the Cloudflare Workers platform. You can interact with it using this link: [EGP Exchange Bot](https://t.me/EGP_Exchange_Bot)
 
-## Usage
+You can find the deployment guide [here](https://grammy.dev/hosting/cloudflare-workers-nodejs).
 
-Currently, the bot sends the price of EGP when the user sends anything to the bot.
+## Demo Video
 
-## Demo
+https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot/assets/73834838/0696ef3b-2c3a-409a-a7ca-87891d42789f
 
-https://github.com/AhmedMohamedAbdelaty/EGPBot/assets/73834838/45cfcf0b-391f-4681-ade7-825b782e6c15
+## Awareness and Reflections
 
-## Future Work
+This bot is a small practice project on JavaScript and Telegram bots. While the code and the bot may have some issues, we are open to feedback and will try to address any problems. We appreciate your understanding and patience.
 
-- Add support for other currencies.
-- Add commands to the bot for better interaction.
+The bot retrieves currency prices from [egcurrency.com](https://egcurrency.com/en). Please note that we are not the developers of this website and the bot's functionality is based on the availability of the data from this source. If the source website is down or its structure changes, the bot may not function correctly.
 
-## Reflections and Learning
-Currently, the bot is functioning as expected, even though the deployment project isn't in Java. This doesn't concern me, as the primary purpose of this project was to satisfy my curiosity about how Telegram bots are created and deployed. It has been a significant learning experience for me.
+## Learning
 
-## Contributing
-
-Contributions are welcome. Please feel free to submit a pull request or open an issue.
+This project has been a significant learning experience in JavaScript and Telegram bot development. It has provided hands-on experience with various technologies and libraries such as Grammy, Cheerio, and Cloudflare Workers. It has also been an exercise in web scraping, asynchronous programming, and bot deployment.
 
 ## Acknowledgements
 
-- [Telegram Bot API](https://core.telegram.org/bots/api)
-- [Jsoup](https://jsoup.org/)
-- [Glitch](https://glitch.com/)
-- [Grammy](https://grammy.dev/)
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
+We would like to acknowledge the following:
+
+- [Telegram Bot API](https://core.telegram.org/bots/api) for providing the platform for bot development.
+- [Grammy](https://grammy.dev/) for the JavaScript library used to build the bot.
+- [Cheerio](https://cheerio.js.org/) for the web scraping library used to fetch data.
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) for the platform where the bot is deployed.
+- [egcurrency.com](https://egcurrency.com/en) for providing the data used by the bot.
