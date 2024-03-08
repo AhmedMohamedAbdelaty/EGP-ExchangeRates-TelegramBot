@@ -40,7 +40,7 @@ https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot/assets/738
 
 ## Awareness and Reflections
 
-This bot is a small practice project on JavaScript and Telegram bots. While the code and the bot may have some issues, we are open to feedback and will try to address any problems. We appreciate your understanding and patience.
+This bot is a small practice project on JavaScript and Telegram bots. While the code and the bot may have some issues, I'm open to feedback and will try to address any problems. I appreciate your understanding and patience.
 
 The bot retrieves currency prices from [egcurrency.com](https://egcurrency.com/en). Please note that we are not the developers of this website and the bot's functionality is based on the availability of the data from this source. If the source website is down or its structure changes, the bot may not function correctly.
 
