@@ -1,0 +1,9 @@
+{
+    "imports": {
+        "grammy": "https://deno.land/x/grammy@v1.36.1/mod.ts",
+        "grammy_types": "https://deno.land/x/grammy@v1.36.1/types.ts",
+        "dotenv": "https://deno.land/std@0.220.1/dotenv/mod.ts",
+        "http/": "https://deno.land/std@0.220.1/http/",
+        "cheerio": "npm:cheerio@1.0.0-rc.12"
+    }
+}

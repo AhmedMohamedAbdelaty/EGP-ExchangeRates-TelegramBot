@@ -1,0 +1,38 @@
+{
+    "tasks": {
+        "dev": "deno run --allow-net --allow-read --allow-env --allow-write --unstable-kv --allow-import poll.ts",
+        "start": "deno run --allow-net --allow-read --allow-env --allow-write --unstable-kv --allow-import server.ts"
+    },
+    "imports": {
+        "grammy": "https://deno.land/x/grammy@v1.36.1/mod.ts",
+        "grammy_storages/denokv": "https://deno.land/x/grammy_storages@v2.5.1/denokv/src/mod.ts",
+        "cheerio": "https://cdn.skypack.dev/cheerio@1.0.0-rc.12",
+        "std/": "https://deno.land/std@0.220.1/"
+    },
+    "compilerOptions": {
+        "lib": [
+            "deno.window",
+            "deno.unstable"
+        ],
+        "strict": true
+    },
+    "lint": {
+        "include": [
+            "**/*.ts"
+        ],
+        "rules": {
+            "tags": [
+                "recommended"
+            ]
+        }
+    },
+    "fmt": {
+        "include": [
+            "**/*.ts"
+        ],
+        "lineWidth": 100,
+        "indentWidth": 2,
+        "semiColons": true,
+        "singleQuote": false
+    }
+}

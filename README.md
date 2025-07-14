@@ -1,82 +1,158 @@
-<div align="center">
-<a href="https://techforpalestine.org/learn-more">
-  <img src="https://raw.githubusercontent.com/Safouene1/support-palestine-banner/master/StandWithPalestine.svg" alt="StandWithPalestine">
-</a>
+# EGP Exchange Rates Telegram Bot 🇪🇬💱
 
-<a align="center" href="https://hits.sh/github.com/AhmedMohamedAbdelaty/EGP-BlackMarket-TelegramBot/"><img alt="Hits" src="https://hits.sh/github.com/AhmedMohamedAbdelaty/EGP-BlackMarket-TelegramBot.svg?style=for-the-badge&label=Views"/></a>
+[![Deno](https://img.shields.io/badge/deno-v1.40+-black?logo=deno)](https://deno.land/)
+[![TypeScript](https://img.shields.io/badge/typescript-4.9+-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Grammy](https://img.shields.io/badge/grammy-v1.36+-green)](https://grammy.dev/)
 
-</div>
+A modern Telegram bot for checking Egyptian Pound (EGP) exchange rates, fuel prices, and gold prices. Built with **Deno** and **TypeScript** for better performance, security, and developer experience.
 
-## EGP Exchange Rates
+## ✨ Features
 
-EGP Exchange Bot is a Telegram bot that provides users with financial information. It retrieves and sends official bank and black market exchange rates of the Egyptian Pound (EGP) against various currencies, as well as current gold prices.
+- 💱 **Real-time Exchange Rates**: USD, EUR, GBP, SAR and more currencies to EGP
+- ⛽ **Fuel Prices**: Current fuel prices in Egypt
+- 🥇 **Gold Prices**: Live gold prices in Egyptian market
+- 🔄 **Currency Conversion**: Convert between different currencies
+- 🎛️ **Admin Panel**: Web-based admin interface for bot management
+- 📊 **Multiple Sources**: Aggregates data from reliable financial sources
+- ⚡ **Fast & Secure**: Built with Deno for enhanced security and performance
 
-You can interact with the bot using this link: [EGP Exchange Bot](https://t.me/EGP_Exchange_Bot)
+## 🚀 Quick Start
 
-## Features of the Bot
+### Prerequisites
 
-1. **Currency Rates**: The bot provides the latest currency rates for the Egyptian pound in both banks and the black market. It supports multiple currencies including USD, EUR, GBP, SAR, AED, and KWD.
+- [Deno](https://deno.land/) v1.40 or higher
+- A Telegram Bot Token from [@BotFather](https://t.me/botfather)
 
-2. **Gold Prices**: The bot fetches the latest gold prices. It supports multiple types of gold including 24k, 21k, 18k, 22k, Gold Ounce, and Gold Pound (Coin).
+### Installation
 
-3. **Currency Conversion**: The bot provides a currency conversion feature. Users can convert between different currencies.
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot.git
+   cd EGP-ExchangeRates-TelegramBot
+   ```
 
-4. **Interactive Menus**: The bot uses interactive menus to guide the user through its features. It supports multiple commands including "start", "currency rates", "specific currency rate", "gold prices", and "currency conversion".
+2. **Set up environment variables**
+   ```bash
+   # Create .env file
+   cp .env.example .env
 
-5. **Error Handling**: The bot has robust error handling. If it fails to fetch the latest data, it will return the last successfully fetched data.
+   # Edit .env with your configuration
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   ADMIN_SECRET=your_admin_secret_here
+   ```
 
-6. **Localization**: The bot supports Arabic language for its interface and responses.
+3. **Run the bot**
+   ```bash
+   # Development mode with polling
+   deno task dev
 
+   # Production mode with webhooks
+   deno task start
+   ```
 
-## Deployment
+## 🛠️ Configuration
 
-The bot is deployed on the Cloudflare Workers platform. You can interact with it using this link: [EGP Exchange Bot](https://t.me/EGP_Exchange_Bot)
+The bot supports both **polling** and **webhook** modes:
 
-You can find the deployment guide [here](https://grammy.dev/hosting/cloudflare-workers-nodejs).
+- **Polling** (`poll.ts`): For development and testing
+- **Webhook** (`server.ts`): For production deployment
 
-### Setting Up Your Bot Token
+### Environment Variables
 
-To set up your bot token, follow these steps:
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | ✅ |
+| `ADMIN_SECRET` | Secret key for admin panel access | ✅ |
+| `WEBHOOK_URL` | Webhook URL for production | ⚠️ (webhook mode) |
+| `PORT` | Server port (default: 3000) | ❌ |
 
-1. Create a `.env` file in the root directory of your project.
+## 📁 Project Structure
 
-2. In the `.env` file, add your bot token like this:
+```
+├── bot.ts                 # Main bot logic and handlers
+├── config.ts             # Configuration management
+├── server.ts             # Webhook server (production)
+├── poll.ts               # Polling server (development)
+├── admin_server.ts       # Admin panel server
+├── handlers/             # Command and callback handlers
+│   ├── commands.ts       # Bot commands
+│   ├── conversion.ts     # Currency conversion logic
+│   ├── currency.ts       # Exchange rates
+│   ├── fuel.ts          # Fuel prices
+│   └── gold.ts          # Gold prices
+├── services/            # External API services
+│   └── api.ts          # API clients and data fetching
+├── keyboards/           # Telegram inline keyboards
+│   └── index.ts        # Keyboard definitions
+└── deps.*.ts           # Dependency management
+```
 
-    ```env
-    BOT_TOKEN=YourBotTokenHere
-    ```
+## 🎯 Available Commands
 
-    Replace `YourBotTokenHere` with the token you received from the BotFather on Telegram.
+| Command | Description |
+|---------|-------------|
+| `/start` | Initialize the bot and show welcome message |
+| `/help` | Display help information |
+| `/rates` | Show current exchange rates |
+| `/convert` | Start currency conversion |
+| `/fuel` | Get current fuel prices |
+| `/gold` | Check gold prices |
 
-3. The bot token is now stored in an environment variable and can be accessed in your code like this:
+## 🔧 Deployment
 
-    ```javascript
-    const BOT_TOKEN = process.env.BOT_TOKEN;
-    ```
+### Deno Deploy
 
-    This line of code retrieves the bot token from the environment variables and assigns it to the `BOT_TOKEN` constant.
+1. Fork this repository
+2. Connect your GitHub account to [Deno Deploy](https://dash.deno.com/)
+3. Create a new project and link your repository
+4. Set environment variables in the project settings
+5. Deploy with the `server.ts` entry point
 
-Remember to add the `.env` file to your `.gitignore` file to prevent it from being committed to your repository. This is important to keep your bot token secure.
-## Demo Video
+### Docker
 
-https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot/assets/73834838/0696ef3b-2c3a-409a-a7ca-87891d42789f
+```dockerfile
+FROM denoland/deno:latest
 
-## Awareness and Reflections
+WORKDIR /app
+COPY . .
+RUN deno cache server.ts
 
-This bot is a small practice project on JavaScript and Telegram bots. While the code and the bot may have some issues, I'm open to feedback and will try to address any problems. I appreciate your understanding and patience.
+EXPOSE 3000
+CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-env", "--allow-write", "--unstable-kv", "server.ts"]
+```
 
-The bot retrieves currency prices from [egcurrency.com](https://egcurrency.com/en). Please note that we are not the developers of this website and the bot's functionality is based on the availability of the data from this source. If the source website is down or its structure changes, the bot may not function correctly.
+### Other Platforms
 
-## Learning
+The bot can be deployed on any platform that supports Deno:
+- Railway
+- Fly.io
+- Heroku (with Deno buildpack)
+- VPS with Deno runtime
 
-This project has been a significant learning experience in JavaScript and Telegram bot development. It has provided hands-on experience with various technologies and libraries such as Grammy, Cheerio, and Cloudflare Workers. It has also been an exercise in web scraping, asynchronous programming, and bot deployment.
+## 🔄 Migration Notice
 
-## Acknowledgements
+> **Note**: This repository was previously a JavaScript/Cloudflare Workers implementation. The original code has been preserved in the [`legacy-cloudflare-workers`](https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot/tree/legacy-cloudflare-workers) branch. The current version is a complete rewrite using Deno and TypeScript for better maintainability and performance.
 
-We would like to acknowledge the following:
+## 🤝 Contributing
 
-- [Telegram Bot API](https://core.telegram.org/bots/api) for providing the platform for bot development.
-- [Grammy](https://grammy.dev/) for the JavaScript library used to build the bot.
-- [Cheerio](https://cheerio.js.org/) for the web scraping library used to fetch data.
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/) for the platform where the bot is deployed.
-- [egcurrency.com](https://egcurrency.com/en) for providing the data used by the bot.
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Grammy](https://grammy.dev/) - The Telegram Bot Framework for Deno
+- [Deno](https://deno.land/) - A secure runtime for JavaScript and TypeScript
+- Exchange rate data providers and financial APIs
+
+---
+
+⭐ If you find this project useful, please consider giving it a star!
