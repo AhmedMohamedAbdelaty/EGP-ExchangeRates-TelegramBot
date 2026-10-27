@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "egp-exchange-production",
+  "main": "cloudflare/worker.ts",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CHAT_SESSIONS",
+        "class_name": "ChatSession"
+      },
+      {
+        "name": "ANALYTICS",
+        "class_name": "AnalyticsStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "ChatSession",
+        "AnalyticsStore"
+      ]
+    }
+  ]
+}
