@@ -1,207 +1,93 @@
-import { serve } from "https://deno.land/std@0.220.1/http/server.ts";
-import { webhookCallback } from "./deps.deno.ts";
-import { bot } from "./bot.ts";
-import { config } from "./config.ts";
-import { handleAdminRequest } from "./admin_server.ts";
+import { Bot, webhookCallback, type Context } from "./deps.deno.ts";
 
-async function setupWebhook() {
-    if (!config.BOT_TOKEN) {
-        console.error("CRITICAL: BOT_TOKEN is not defined. Webhook setup cannot proceed.");
-        return;
-    }
+type RequestHandler = (request: Request) => Response | Promise<Response>;
 
-    const deploymentId = Deno.env.get("DENO_DEPLOYMENT_ID");
-
-    if (!deploymentId) {
-        console.warn("DENO_DEPLOYMENT_ID not found. Skipping webhook setup. This is expected for local development (use poll.ts).");
-        return;
-    }
-
-    const baseUrl = `https://price-bot-${deploymentId}.deno.dev`;
-    console.log(`Using deployment-specific base URL: ${baseUrl}`);
-
-    const webhookUrl = `${baseUrl}/${config.BOT_TOKEN}`;
-
+export function createTelegramWebhook<C extends Context>(bot: Bot<C>, secret: string, timeoutMs = 20_000): RequestHandler {
+  // grammY's finite timeout leaves a late rejection unobserved; race its unbounded
+  // callback ourselves so a timed-out update cannot crash the process later.
+  const callback = webhookCallback(bot, "std/http", { secretToken: secret, timeoutMilliseconds: Infinity });
+  return async (request) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error("Webhook timed out")), timeoutMs);
+    });
     try {
-        await bot.api.setWebhook(webhookUrl);
-        console.log(`Webhook successfully set to: ${webhookUrl}`);
-    } catch (error) {
-        console.error("CRITICAL: Failed to set webhook:", error);
+      return await Promise.race([callback(request), deadline]);
+    } finally {
+      clearTimeout(timer);
     }
+  };
 }
 
-await setupWebhook();
+// Compare every byte for matching-length secrets without exposing either value.
+function matchesSecret(actual: string | null, expected: string): boolean {
+  if (actual === null || actual.length !== expected.length) return false;
+  let difference = 0;
+  for (let i = 0; i < expected.length; i++) {
+    difference |= actual.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return difference === 0;
+}
 
-const handleUpdate = webhookCallback(bot, "std/http");
-
-const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram Bot Tester</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      line-height: 1.6;
+export function createRequestHandler(options: {
+  webhookSecret: string;
+  handleUpdate: RequestHandler;
+  adminToken?: string;
+  handleAdmin?: RequestHandler;
+}): RequestHandler {
+  if (!/^[A-Za-z0-9_-]{1,256}$/.test(options.webhookSecret)) {
+    throw new Error("WEBHOOK_SECRET must contain 1–256 letters, digits, underscores or hyphens");
+  }
+  return async (request) => {
+    const path = new URL(request.url).pathname;
+    if (request.method === "GET" && (path === "/" || path === "/health")) {
+      return new Response("OK", { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
-    h1 {
-      color: #0088cc;
-      text-align: center;
-    }
-    form {
-      background: #f5f5f5;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-    input[type="text"] {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 15px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    button {
-      background: #0088cc;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #006699;
-    }
-    #response {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 4px;
-      display: none;
-    }
-    .success {
-      background: #d4edda;
-      border: 1px solid #c3e6cb;
-      color: #155724;
-    }
-    .error {
-      background: #f8d7da;
-      border: 1px solid #f5c6cb;
-      color: #721c24;
-    }
-  </style>
-</head>
-<body>
-  <h1>Telegram Bot Tester</h1>
-  <form id="botForm">
-    <label for="chatId">Chat ID:</label>
-    <input type="text" id="chatId" name="chatId" required placeholder="Enter your Telegram chat ID">
-    <br>
-    <label for="message">Message:</label>
-    <input type="text" id="message" name="message" required placeholder="Enter message to send">
-    <br>
-    <button type="submit">Send Message</button>
-  </form>
-  <div id="response"></div>
-
-  <script>
-    document.getElementById('botForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const chatId = document.getElementById('chatId').value;
-      const message = document.getElementById('message').value;
-      const responseDiv = document.getElementById('response');
-
-      try {
-        const response = await fetch('/send-message', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ chatId, message }),
-        });
-
-        const result = await response.json();
-        responseDiv.textContent = result.status;
-        responseDiv.className = response.ok ? 'success' : 'error';
-        responseDiv.style.display = 'block';
-      } catch (error) {
-        responseDiv.textContent = 'Error: ' + error.message;
-        responseDiv.className = 'error';
-        responseDiv.style.display = 'block';
+    if (path === "/webhook" && request.method === "POST") {
+      if (!matchesSecret(request.headers.get("X-Telegram-Bot-Api-Secret-Token"), options.webhookSecret)) {
+        return new Response("Unauthorized", { status: 401 });
       }
-    });
-  </script>
-</body>
-</html>
-`;
-
-serve(async (req) => {
-    const url = new URL(req.url);
-
-    if (req.method === "GET" && url.pathname === "/") {
-        return new Response(html, {
-            headers: { "Content-Type": "text/html" },
-        });
+      try {
+        return await options.handleUpdate(request);
+      } catch {
+        console.error("Error processing update");
+        return new Response("Internal Server Error", { status: 500 });
+      }
     }
-
-    if (req.method === "GET" && url.pathname === "/admin") {
-        try {
-            return await handleAdminRequest(req);
-        } catch (err) {
-            console.error("Error serving admin dashboard:", err);
-            return new Response("Error serving admin dashboard", { status: 500 });
-        }
+    if (path === "/admin" && request.method === "GET" && options.adminToken && options.handleAdmin) {
+      if (!matchesSecret(request.headers.get("Authorization"), `Bearer ${options.adminToken}`)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      try {
+        return await options.handleAdmin(request);
+      } catch {
+        console.error("Error serving admin dashboard");
+        return new Response("Internal Server Error", { status: 500 });
+      }
     }
-
-    if (req.method === "POST" && url.pathname === "/send-message") {
-        try {
-            const { chatId, message } = await req.json();
-            await bot.api.sendMessage(chatId, message);
-            return new Response(
-                JSON.stringify({ status: "Message sent successfully!" }),
-                {
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-        } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : "Unknown error";
-            console.error("Error sending message:", errorMessage);
-            return new Response(
-                JSON.stringify({
-                    status: "Failed to send message.",
-                    error: errorMessage
-                }),
-                {
-                    status: 500,
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-        }
-    }
-
-    if (req.method === "POST") {
-        // The webhook path is the bot token
-        if (config.BOT_TOKEN && url.pathname.slice(1) === config.BOT_TOKEN) {
-            try {
-                return await handleUpdate(req);
-            } catch (err) {
-                console.error("Error processing update:", err);
-                return new Response("Error processing update", { status: 500 });
-            }
-        }
-    }
-
     return new Response("Not Found", { status: 404 });
-}, { port: 8000 });
+  };
+}
 
-console.log("Server is running on http://localhost:8000");
+if (import.meta.main) {
+  const { config } = await import("./config.ts");
+  if (!config.BOT_TOKEN) throw new Error("BOT_TOKEN is required");
+  if (!config.WEBHOOK_SECRET) throw new Error("WEBHOOK_SECRET is required");
+  const { bot } = await import("./bot.ts");
+  const admin = config.ADMIN_DASHBOARD_TOKEN ? await import("./admin_server.ts") : undefined;
+  const handler = createRequestHandler({
+    webhookSecret: config.WEBHOOK_SECRET,
+    handleUpdate: createTelegramWebhook(bot, config.WEBHOOK_SECRET),
+    adminToken: config.ADMIN_DASHBOARD_TOKEN,
+    handleAdmin: admin?.handleAdminRequest,
+  });
+  const configuredPort = Deno.env.get("PORT");
+  if (configuredPort !== undefined) {
+    if (!/^\d+$/.test(configuredPort) || Number(configuredPort) < 1 || Number(configuredPort) > 65535) {
+      throw new Error("PORT must be an integer between 1 and 65535");
+    }
+    Deno.serve({ port: Number(configuredPort) }, handler);
+  } else {
+    Deno.serve(handler);
+  }
+}

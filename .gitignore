@@ -1,6 +1,5 @@
 # Deno
 .deno/
-deno.lock
 
 # Environment variables
 .env
@@ -54,3 +53,15 @@ tmp/
 # Backup files
 *.bak
 *.backup
+
+# Local secrets and Cloudflare state
+*.env
+.env
+.env.*
+__pycache__/
+
+# Cloudflare local state and secrets
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*

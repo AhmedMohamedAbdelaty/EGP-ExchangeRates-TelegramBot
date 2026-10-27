@@ -2,7 +2,7 @@ import type { Conversation } from "../deps.deno.ts";
 import type { MyContext, InnerContext } from "../bot.ts";
 import { getCurrencySelectionKeyboard, getMainMenuKeyboard } from "../keyboards/index.ts";
 import { AllCurrencyPrices, convertCurrency, getCurrencyPrices } from "../services/api.ts";
-import { config } from "../config.ts";
+import { config } from "../app_config.ts";
 
 export async function currencyConversion(
     conversation: Conversation<MyContext, InnerContext>,

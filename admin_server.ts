@@ -1,27 +1,7 @@
-import { STATUS_CODE } from "https://deno.land/std@0.224.0/http/status.ts";
-import { config } from "./config.ts";
-
 const kv = await Deno.openKv();
 
 const KV_ANALYTICS_DAILY_INTERACTIONS_PREFIX = ["analytics", "daily_interactions"];
 const KV_ANALYTICS_COMMAND_USAGE_PREFIX = ["analytics", "command_usage"];
-
-const ADMIN_USER_IDS = (() => {
-    const envValue = Deno.env.get("ADMIN_USER_IDS");
-    if (!envValue?.trim()) return [];
-
-    return envValue.split(',')
-        .map(id => {
-            const parsed = parseInt(id.trim(), 10);
-            if (isNaN(parsed)) {
-                console.warn(`Invalid admin user ID: ${id.trim()}`);
-                return null;
-            }
-            return parsed;
-        })
-        .filter((id): id is number => id !== null);
-})();
-
 
 async function getAnalyticsData() {
     const dailyInteractions = new Map<string, number>();
@@ -52,11 +32,17 @@ async function getAnalyticsData() {
     };
 }
 
+function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[character]!);
+}
+
 function renderAdminDashboard(data: { dailyInteractions: Map<string, number>; commandUsage: Map<string, number> }): string {
     let dailyInteractionsHtml = "";
     if (data.dailyInteractions.size > 0) {
         for (const [date, count] of data.dailyInteractions) {
-            dailyInteractionsHtml += `<li>${date}: ${count} interactions</li>`;
+            dailyInteractionsHtml += `<li>${escapeHtml(date)}: ${count} interactions</li>`;
         }
     } else {
         dailyInteractionsHtml = "<li>No daily interaction data yet.</li>";
@@ -65,7 +51,7 @@ function renderAdminDashboard(data: { dailyInteractions: Map<string, number>; co
     let commandUsageHtml = "";
     if (data.commandUsage.size > 0) {
         for (const [command, count] of data.commandUsage) {
-            commandUsageHtml += `<li>/${command}: ${count} uses</li>`;
+            commandUsageHtml += `<li>/${escapeHtml(command)}: ${count} uses</li>`;
         }
     } else {
         commandUsageHtml = "<li>No command usage data yet.</li>";
@@ -99,7 +85,7 @@ function renderAdminDashboard(data: { dailyInteractions: Map<string, number>; co
                 <ul>${commandUsageHtml}</ul>
 
                 <p>Note: All data is aggregated and anonymized to protect user privacy.</p>
-                <p>Admin User IDs: ${ADMIN_USER_IDS.join(', ') || 'Not configured'}</p>
+
             </div>
         </body>
         </html>
@@ -107,21 +93,19 @@ function renderAdminDashboard(data: { dailyInteractions: Map<string, number>; co
 }
 
 export async function handleAdminRequest(req: Request): Promise<Response> {
-    const url = new URL(req.url);
-
     if (req.method !== "GET") {
-        return new Response("Method Not Allowed", { status: STATUS_CODE.MethodNotAllowed });
+        return new Response("Method Not Allowed", { status: 405 });
     }
 
     try {
         const analyticsData = await getAnalyticsData();
         const html = renderAdminDashboard(analyticsData);
         return new Response(html, {
-            status: STATUS_CODE.OK,
-            headers: { "Content-Type": "text/html; charset=utf-8" },
+            status: 200,
+            headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
         });
-    } catch (error) {
-        console.error("Error generating admin dashboard:", error);
-        return new Response("Internal Server Error", { status: STATUS_CODE.InternalServerError });
+    } catch {
+        console.error("Error generating admin dashboard");
+        return new Response("Internal Server Error", { status: 500 });
     }
 }
