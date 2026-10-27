@@ -1,23 +1,11 @@
-import { MyContext } from "../bot.ts";
-import { getMainMenuKeyboard, getCurrencySelectionKeyboard } from "../keyboards/index.ts";
-import { config } from "../config.ts";
-import { getCurrencyPrices, getCurrentEgyptTime } from "../services/api.ts";
+import type { MyContext } from "../bot.ts";
+import { getMainMenuKeyboard } from "../keyboards/index.ts";
+import { config } from "../app_config.ts";
+import { getCurrencyPrices } from "../services/api.ts";
 
 function escapeMarkdownV2(text: string): string {
     const escapeChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '<', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
     return text.split('').map(char => escapeChars.includes(char) ? `\\${char}` : char).join('');
-}
-
-function getCurrencyName(currency: string): string {
-    const names: Record<string, string> = {
-        USD: "الدولار الأمريكي",
-        EUR: "اليورو",
-        GBP: "الجنيه الاسترليني",
-        SAR: "الريال السعودي",
-        AED: "الدرهم الإماراتي",
-        KWD: "الدينار الكويتي",
-    };
-    return names[currency] || currency;
 }
 
 export async function handleInfoCommand(ctx: MyContext): Promise<void> {
@@ -73,7 +61,7 @@ export async function handleStartCommand(ctx: MyContext): Promise<void> {
 
         const welcomeMessage = `مرحبًا بك يا ${userName}! 🤖💰
 
-يمكنك الحصول على أسعار العملات للجنيه المصري في البنوك والسوق السوداء، وأسعار الذهب، ويمكنك أيضًا استخدام خدمة تحويل العملات.
+يمكنك الحصول على أسعار العملات للجنيه المصري في البنوك والسوق، وأسعار الذهب، ويمكنك أيضًا استخدام خدمة تحويل العملات.
 
 اختر أحد الخيارات التالية للمتابعة:`;
 
@@ -89,17 +77,17 @@ export async function handleHelpCommand(ctx: MyContext): Promise<void> {
     if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
     try {
-        const helpMessage = `Hey\\! Here's what I can do:
+        const helpMessage = `Hey! Here's what I can do:
 
-/start \\- Get things rolling and see the main menu\\.
-/help \\- Show this help message\\.
-/info \\- A little about me and my creator\\.
-/setfav \\<CODE\\> \\- Add/remove a currency to your faves (e\\.g\\., /setfav USD)\\. Supported: ${escapeMarkdownV2(config.CURRENCIES.join(", "))}
-/myfavs \\- Check out your favorite currencies and their rates\\.
-/cancel \\- Stop the current thing I'm doing\\.
+/start - Get things rolling and see the main menu.
+/help - Show this help message.
+/info - A little about me and my creator.
+/setfav <CODE> - Add/remove a favorite currency, for example /setfav USD. Supported: ${config.CURRENCIES.join(", ")}
+/myfavs - Check your favorite currencies.
+/cancel - Stop the current operation.
 
-You can also just tap the buttons on the menu\\! 👍`;
-        await ctx.reply(helpMessage, {parse_mode: "MarkdownV2"});
+You can also tap the buttons on the menu! 👍`;
+        await ctx.reply(helpMessage);
     } finally {
         ctx.session.isOperationInProgress = false;
     }
@@ -170,22 +158,21 @@ export async function handleMyFavoritesCommand(ctx: MyContext): Promise<void> {
 export async function handleMyFavoriteRatesCommand(ctx: MyContext): Promise<void> {
     if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
-    await ctx.replyWithChatAction("typing");
-    const favorites = ctx.session.favoriteCurrencies || [];
-
-    if (favorites.length === 0) {
-        await ctx.reply(`مفيش عملات مفضلة حالياً 😅\\. استخدم /setfav \\<الكود\\> عشان تضيف واحدة\\. العملات المتاحة: ${escapeMarkdownV2(config.CURRENCIES.join(", "))}`, {
-            reply_markup: getMainMenuKeyboard(),
-            parse_mode: "MarkdownV2"
-        });
-        ctx.session.isOperationInProgress = false;
-        return;
-    }
-
     try {
+        await ctx.replyWithChatAction("typing");
+        const favorites = ctx.session.favoriteCurrencies || [];
+
+        if (favorites.length === 0) {
+            await ctx.reply(`مفيش عملات مفضلة حالياً 😅\\. استخدم /setfav \\<الكود\\> عشان تضيف واحدة\\. العملات المتاحة: ${escapeMarkdownV2(config.CURRENCIES.join(", "))}`, {
+                reply_markup: getMainMenuKeyboard(),
+                parse_mode: "MarkdownV2"
+            });
+            ctx.session.isOperationInProgress = false;
+            return;
+        }
+
         const allPrices = await getCurrencyPrices();
         let message = "دي أسعار عملاتك المفضلة 🌟:\n";
-        const currentTime = getCurrentEgyptTime();
         let foundAnyRate = false;
 
         for (const fav of favorites) {
@@ -205,7 +192,7 @@ export async function handleMyFavoriteRatesCommand(ctx: MyContext): Promise<void
                 hasRateForFav = true;
             }
             if (blackMarketBuy && blackMarketSell && blackMarketBuy !== "N/A" && blackMarketSell !== "N/A") {
-                currencySection += `\n   ⚫ السوق السوداء:
+                currencySection += `\n   ⚫ السوق:
       شراء: ${escapeMarkdownV2(blackMarketBuy)} \\| بيع: ${escapeMarkdownV2(blackMarketSell)}`;
                 hasRateForFav = true;
             }
@@ -217,8 +204,6 @@ export async function handleMyFavoriteRatesCommand(ctx: MyContext): Promise<void
         }
         if (!foundAnyRate) {
             message = "للأسف مقدرتش ألاقي أسعار لأي من عملاتك المفضلة دلوقتي 😕\\.";
-        } else {
-            message += `\n\n📅 آخر تحديث: ${escapeMarkdownV2(currentTime)}`;
         }
 
         await ctx.reply(message, { reply_markup: getMainMenuKeyboard(), parse_mode: "MarkdownV2" });

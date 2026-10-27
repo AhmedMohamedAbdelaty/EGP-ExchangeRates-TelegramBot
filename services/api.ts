@@ -1,38 +1,30 @@
 import { cheerio } from "../deps.cheerio.ts";
-import { config } from "../config.ts";
+import { config } from "../app_config.ts";
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
 const CACHE_DURATION = 10 * 60 * 1000;
+const MAX_RETRIES = 3;
+const REQUEST_TIMEOUT_MS = 2_500;
+const RETRY_DELAY_MS = 250;
+const UNKNOWN_DATE = "غير معروف";
 
 interface CacheEntry<T> {
     data: T;
     timestamp: number;
 }
-
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
 
 export function getCurrentEgyptTime(): string {
-    const now = new Date();
-    return now.toLocaleString("en-US", {
+    return new Date().toLocaleString("en-US", {
         timeZone: config.TIMEZONE,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: true,
+        day: "2-digit", month: "2-digit", year: "numeric",
     }).replace(",", " -");
 }
 
 function getCachedData<T>(key: string): T | null {
     const entry = cache.get(key);
-    if (entry && (Date.now() - entry.timestamp < CACHE_DURATION)) {
-        return entry.data as T;
-    }
-    if (entry) {
-        cache.delete(key);
-    }
+    if (entry && Date.now() - entry.timestamp < CACHE_DURATION) return entry.data as T;
+    if (entry) cache.delete(key);
     return null;
 }
 
@@ -44,330 +36,177 @@ function cleanPrice(price: string): string {
     return price.replace(/,/g, "").trim();
 }
 
-const FOREXFY_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Sec-GPC": "1",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "DNT": "1",
-    "Cookie": "language=f7232ce47f4ce53a4680d1dc0963d6322194d5da30a6080471d672a17a12fb37a%3A2%3A%7Bi%3A0%3Bs%3A8%3A%22language%22%3Bi%3A1%3Bs%3A2%3A%22en%22%3B%7D; country=c58ccfeba19e434161aac4e3e7df42eb820a9ed0d0470b866e7a94e73c46e923a%3A2%3A%7Bi%3A0%3Bs%3A7%3A%22country%22%3Bi%3A1%3Bs%3A2%3A%22US%22%3B%7D; _csrf-forexfy=7a8cd136abed4e9b070e75adeee8b6c5eaddd9030ad87f597d2e72aa9b94f83ea%3A2%3A%7Bi%3A0%3Bs%3A13%3A%22_csrf-forexfy%22%3Bi%3A1%3Bs%3A32%3A%22ulvD71IJhCZ-P85hB2TCjeHYsj2CPdFg%22%3B%7D"
-};
-
-async function fetchWithRetries(url: string, options?: RequestInit, retries = MAX_RETRIES): Promise<Response> {
-    for (let i = 0; i < retries; i++) {
+// Include response body consumption in the deadline, not only receipt of headers.
+async function fetchText(url: string, headers?: HeadersInit): Promise<string> {
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status} for ${url}`);
-            }
-            return response;
+            const response = await fetch(url, {
+                headers,
+                signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.text();
         } catch (error) {
-            console.error(`Attempt ${i + 1}/${retries} failed for ${url}:`, error.message);
-            if (i === retries - 1) throw error;
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (i + 1)));
+            if (attempt === MAX_RETRIES - 1) throw error;
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
         }
     }
-    throw new Error(`Failed to fetch ${url} after ${retries} retries.`);
+    throw new Error("Provider request failed");
 }
 
-
-async function fetchForexFyPage(): Promise<string> {
-    console.log(`Fetching data from: ${config.API_URLS.FOREXFY_EG}`);
-    const response = await fetchWithRetries(config.API_URLS.FOREXFY_EG, {
-        method: "GET",
-        headers: FOREXFY_HEADERS,
-    });
-    return await response.text();
-}
-
-export interface CurrencyData {
-    Buy: string;
-    Sell: string;
-}
-
+export interface CurrencyData { Buy: string; Sell: string; }
 export interface AllCurrencyPrices {
     blackMarket: Record<string, CurrencyData>;
     bank: Record<string, CurrencyData>;
     lastUpdateBlackMarket: string;
     lastUpdateBank: string;
 }
-
-export interface GoldPriceEntry {
-    price?: string;
-    buy?: string;
-    sell?: string;
-}
-
-export interface GoldPrices {
-    prices: Record<string, GoldPriceEntry>;
-    lastUpdate: string;
-}
+export interface GoldPriceEntry { price?: string; buy?: string; sell?: string; }
+export interface GoldPrices { prices: Record<string, GoldPriceEntry>; lastUpdate: string; }
+export interface FuelData { [key: string]: string; }
+export interface FuelPrices { prices: FuelData; lastUpdate: string; }
 
 interface ParsedForexFyData {
     bankPrices: Record<string, CurrencyData>;
     blackMarketPrices: Record<string, CurrencyData>;
     goldPrices: Record<string, GoldPriceEntry>;
+    currencyDate: string;
+    goldDate: string;
 }
 
+type ObjectValue = Record<string, unknown>;
+function object(value: unknown): ObjectValue | undefined {
+    return value !== null && typeof value === "object" && !Array.isArray(value)
+        ? value as ObjectValue : undefined;
+}
+function positiveNumber(value: unknown): number | undefined {
+    if (typeof value !== "string" && typeof value !== "number") return undefined;
+    if (typeof value === "string" && !/^(?:\d+\.?\d*|\.\d+)$/.test(value.trim())) return undefined;
+    const result = Number(value);
+    return Number.isFinite(result) && result > 0 ? result : undefined;
+}
+function providerDate(value: unknown): string {
+    const date = String(value ?? "");
+    if (!/^\d{8}$/.test(date)) return UNKNOWN_DATE;
+    const year = Number(date.slice(0, 4));
+    const month = Number(date.slice(4, 6));
+    const day = Number(date.slice(6, 8));
+    const checked = new Date(Date.UTC(year, month - 1, day));
+    return checked.getUTCFullYear() === year && checked.getUTCMonth() === month - 1 && checked.getUTCDate() === day
+        ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}` : UNKNOWN_DATE;
+}
+function sourcePrices(value: unknown, expectedSource: string, unit = 1): CurrencyData | undefined {
+    const source = object(value);
+    if (!source || source.source !== expectedSource) return undefined;
+    const buy = positiveNumber(source.buy);
+    const sell = positiveNumber(source.sell);
+    if (buy === undefined || sell === undefined) return undefined;
+    const normalizedBuy = buy / unit;
+    const normalizedSell = sell / unit;
+    if (!Number.isFinite(normalizedBuy) || !Number.isFinite(normalizedSell) || normalizedBuy <= 0 || normalizedSell <= 0) return undefined;
+    return { Buy: String(normalizedBuy), Sell: String(normalizedSell) };
+}
+
+const GOLD_CODES: Record<string, string> = {
+    "24k": "24k", "21k": "21k", "18k": "18k", "22k": "22k",
+    xau: "Gold Ounce", coin: "Gold Pound(Coin)", "14k": "14k", "12k": "12k", "9k": "9k",
+};
+
 function parseForexFyHtml(html: string): ParsedForexFyData {
-    const $ = cheerio(html);
+    const pageJson = cheerio(html)("div#app[data-page]").attr("data-page");
+    if (!pageJson) throw new Error("ForexFy page data missing");
+    let parsed: unknown;
+    try { parsed = JSON.parse(pageJson); } catch { throw new Error("Invalid ForexFy page data"); }
+    const page = object(parsed);
+    const context = object(page?.context);
+    if (object(context?.country)?.code !== "EG" || object(context?.currency)?.code !== "EGP") {
+        throw new Error("Unexpected ForexFy country or quote currency");
+    }
+    const data = object(page?.data);
+    if (!data || !Array.isArray(data.currencies) || !Array.isArray(data.calculatorMetals)) {
+        throw new Error("ForexFy price collections missing");
+    }
     const bankPrices: Record<string, CurrencyData> = {};
     const blackMarketPrices: Record<string, CurrencyData> = {};
+    for (const item of data.currencies) {
+        const currency = object(item);
+        if (!currency || typeof currency.code !== "string" || !config.CURRENCIES.includes(currency.code)) continue;
+        const unit = positiveNumber(currency.unit);
+        if (currency.quote !== "EGP" || unit === undefined) continue;
+        const sources = object(currency.sources);
+        const bank = sourcePrices(sources?.bank, "bank", unit);
+        const market = sourcePrices(sources?.market, "market", unit);
+        if (bank) bankPrices[currency.code] = bank;
+        if (market) blackMarketPrices[currency.code] = market;
+    }
     const goldPrices: Record<string, GoldPriceEntry> = {};
-
-    // --- Parse Bank Currency Prices ---
-    const bankRatesAnchor = $('h2 a[href="/en/currency/EGP/bank"]');
-    if (bankRatesAnchor.length) {
-        const tableContainer = bankRatesAnchor.closest('h2').next('div');
-        const bankRatesTable = tableContainer.find('div.table-responsive table');
-        bankRatesTable.find('tbody tr').each((_i, el) => {
-            const row = $(el);
-            const nameCell = row.find('td.name a');
-            let currencyText = nameCell.text().trim();
-            const currencyCodeMatch = currencyText.match(/\(([A-Z]{3})\)/);
-
-            if (currencyCodeMatch) {
-                let currencyCode = currencyCodeMatch[1];
-                // Only process if it's in our desired CURRENCIES
-                if (config.CURRENCIES.includes(currencyCode)) {
-                    let buyPrice = cleanPrice(row.find('td:nth-child(2)').text());
-                    let sellPrice = cleanPrice(row.find('td:nth-child(3)').text());
-                    if (currencyText.includes("100 ")) {
-                        buyPrice = (parseFloat(buyPrice) / 100).toFixed(4);
-                        sellPrice = (parseFloat(sellPrice) / 100).toFixed(4);
-                    }
-                    bankPrices[currencyCode] = { Buy: buyPrice, Sell: sellPrice };
-                }
-            }
-        });
-    } else {
-        console.warn("Could not find Bank Currency Prices table anchor on ForexFy.");
-    }
-
-    // --- Parse Black Market Currency Prices ---
-    const blackMarketRatesAnchor = $('h2 a[href="/en/currency/EGP/blackMarket"]');
-    if (blackMarketRatesAnchor.length) {
-        const tableContainer = blackMarketRatesAnchor.closest('h2').next('div');
-        const blackMarketRatesTable = tableContainer.find('div.table-responsive table');
-        blackMarketRatesTable.find('tbody tr').each((_i, el) => {
-            const row = $(el);
-            const nameCell = row.find('td.name a');
-            let currencyText = nameCell.text().trim();
-            const currencyCodeMatch = currencyText.match(/\(([A-Z]{3})\)/);
-
-            if (currencyCodeMatch) {
-                let currencyCode = currencyCodeMatch[1];
-                // Only process if it's in our desired CURRENCIES
-                if (config.CURRENCIES.includes(currencyCode)) {
-                    let buyPrice = cleanPrice(row.find('td:nth-child(2)').text());
-                    let sellPrice = cleanPrice(row.find('td:nth-child(3)').text());
-                    if (currencyText.includes("100 ")) {
-                        buyPrice = (parseFloat(buyPrice) / 100).toFixed(4);
-                        sellPrice = (parseFloat(sellPrice) / 100).toFixed(4);
-                    }
-                    blackMarketPrices[currencyCode] = { Buy: buyPrice, Sell: sellPrice };
-                }
-            }
-        });
-    } else {
-        console.warn("Could not find Black Market Currency Prices table anchor on ForexFy.");
-    }
-
-    console.log("Attempting to parse Gold prices...");
-    const goldPricesAnchorForexFy = $('h2 a[href="/en/gold/EGP/stores"]');
-    if (goldPricesAnchorForexFy.length) {
-        console.log("Gold prices anchor found.");
-        const h2ParentDiv = $('h2:has(a[href="/en/gold/EGP/stores"])').parent();
-        let goldPricesTable = h2ParentDiv.find('div.table-responsive table');
-
-        if (!goldPricesTable.length) {
-            goldPricesTable = $('h2:contains("Gold prices at Goldsmiths in Pound")').next('div.wow').find('table.table');
+    for (const metalItem of data.calculatorMetals) {
+        const metal = object(metalItem);
+        if (metal?.code !== "gold" || !Array.isArray(metal.units)) continue;
+        for (const unitItem of metal.units) {
+            const unit = object(unitItem);
+            if (!unit || typeof unit.code !== "string" || unit.currency !== "EGP") continue;
+            const key = GOLD_CODES[unit.code];
+            if (!key) continue;
+            const local = sourcePrices(object(unit.sources)?.local, "local");
+            if (local) goldPrices[key] = { buy: local.Buy, sell: local.Sell };
         }
-
-        if (goldPricesTable.length) {
-            console.log("Gold prices table found, processing rows...");
-            goldPricesTable.find('tbody tr').each((i, el) => {
-                const row = $(el);
-                const karatNameElement = row.find('td:first-child a span.fw-medium');
-                const karatName = karatNameElement.text().trim();
-                const buyPrice = cleanPrice(row.find('td:nth-child(2)').text());
-                const sellPrice = cleanPrice(row.find('td:nth-child(3)').text());
-
-                console.log(`Gold Row ${i}: Raw Karat='${karatName}', Buy='${buyPrice}', Sell='${sellPrice}'`);
-
-                let mappedKey: string | undefined = undefined;
-                for (const key in config.GOLD_TYPES) {
-                    if (config.GOLD_TYPES[key as keyof typeof config.GOLD_TYPES].toLowerCase() === karatName.toLowerCase()) {
-                        mappedKey = key;
-                        break;
-                    }
-                }
-                if (!mappedKey && karatName.toLowerCase() === "gold coin" && config.GOLD_TYPES["Gold Pound(Coin)"].toLowerCase() === "gold coin") {
-                    mappedKey = "Gold Pound(Coin)";
-                }
-
-                if (mappedKey) {
-                    goldPrices[mappedKey] = { buy: buyPrice, sell: sellPrice };
-                    console.log(`   Mapped to Key='${mappedKey}', Stored: {buy: ${buyPrice}, sell: ${sellPrice}}`);
-                } else {
-                    console.warn(`   ForexFy Gold: Unmapped karat name '${karatName}'`);
-                }
-            });
-            if (Object.keys(goldPrices).length === 0) {
-                console.warn("Gold parsing loop completed, but no gold prices were mapped.");
-            } else {
-                console.log("ForexFy Gold prices parsed:", JSON.stringify(goldPrices));
-            }
-        } else {
-            console.warn("Could not find Gold Prices table element on ForexFy.");
-        }
-    } else {
-        console.warn("Could not find Gold Prices table anchor on ForexFy.");
     }
-
-
-    return { bankPrices, blackMarketPrices, goldPrices };
+    return { bankPrices, blackMarketPrices, goldPrices,
+        currencyDate: providerDate(data.currencyDayId), goldDate: providerDate(data.metalDayId) };
 }
 
 async function getParsedDataWithCache(): Promise<ParsedForexFyData> {
-    const cacheKey = "forexFy_parsedData_eg";
+    const cacheKey = "forexfy";
     const cached = getCachedData<ParsedForexFyData>(cacheKey);
-    if (cached) {
-        console.log("Returning cached parsed ForexFy data.");
-        return cached;
-    }
-
-    console.log("Fetching and parsing ForexFy data.");
-    const html = await fetchForexFyPage();
-    const parsedData = parseForexFyHtml(html);
-    setCachedData(cacheKey, parsedData);
-    return parsedData;
+    if (cached) return cached;
+    const html = await fetchText(config.API_URLS.FOREXFY_EG, {
+        "User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.5",
+    });
+    const data = parseForexFyHtml(html);
+    // A partial response remains usable, but is retried on the next request.
+    if (config.CURRENCIES.every((code) => data.bankPrices[code] && data.blackMarketPrices[code]) &&
+        Object.values(GOLD_CODES).every((code) => data.goldPrices[code])) setCachedData(cacheKey, data);
+    return data;
 }
 
 export async function getCurrencyPrices(): Promise<AllCurrencyPrices> {
-    try {
-        const parsedData = await getParsedDataWithCache();
-        const currentTime = getCurrentEgyptTime();
-
-        if (Object.keys(parsedData.bankPrices).length === 0 && Object.keys(parsedData.blackMarketPrices).length === 0) {
-            console.error("ForexFy: No currency data could be parsed from the page.");
-        }
-
-        return {
-            bank: parsedData.bankPrices,
-            blackMarket: parsedData.blackMarketPrices,
-            lastUpdateBank: currentTime,
-            lastUpdateBlackMarket: currentTime,
-        };
-    } catch (error) {
-        console.error("Error fetching or parsing currency prices from ForexFy:", error);
-        throw new Error("Unable to fetch currency prices from ForexFy.app. " + error.message);
+    const data = await getParsedDataWithCache();
+    if (!Object.keys(data.bankPrices).length && !Object.keys(data.blackMarketPrices).length) {
+        throw new Error("No valid ForexFy currency prices");
     }
+    return { bank: data.bankPrices, blackMarket: data.blackMarketPrices,
+        lastUpdateBank: data.currencyDate, lastUpdateBlackMarket: data.currencyDate };
 }
 
 export async function getGoldPrices(): Promise<GoldPrices> {
-    try {
-        const parsedData = await getParsedDataWithCache();
-        const currentTime = getCurrentEgyptTime();
-        if (Object.keys(parsedData.goldPrices).length === 0) {
-            console.error("ForexFy: No gold data could be parsed from the page.");
-        }
-        return {
-            prices: parsedData.goldPrices,
-            lastUpdate: currentTime,
-        };
-    } catch (error) {
-        console.error("Error fetching or parsing gold prices from ForexFy:", error);
-        throw new Error("Unable to fetch gold prices from ForexFy.app. " + error.message);
-    }
-}
-
-// --- Fuel Prices ---
-export interface FuelData {
-    [key: string]: string;
-}
-export interface FuelPrices {
-    prices: FuelData;
-    lastUpdate: string;
-}
-
-async function scrapeSarfTodayWebsite<T>(url: string, cacheKey: string, parser: ($: any) => T): Promise<T> {
-    const cached = getCachedData<T>(cacheKey);
-    if (cached) {
-        console.log(`Returning cached data for key: ${cacheKey} (SarfToday)`);
-        return cached;
-    }
-    console.log(`Fetching and parsing data for key: ${cacheKey} from URL: ${url} (SarfToday)`);
-    const response = await fetchWithRetries(url);
-    const body = await response.text();
-    const $ = cheerio(body);
-    const result = parser($);
-
-    setCachedData(cacheKey, result);
-    return result;
-}
-
-function parseSarfTodayFuelPrices($: any): FuelPrices {
-    const prices: FuelData = {};
-    let lastUpdate = getCurrentEgyptTime();
-
-    const currencyTimestampElement = $("table.table.local-cur thead th:first-child");
-    if (currencyTimestampElement.length) {
-        const tsText = currencyTimestampElement.text().trim();
-        if (tsText) lastUpdate = tsText;
-    } else {
-        const genericTimestamp = $("span.date-time, .last-updated, .update-time, p.text-muted.mini-text > span").first().text().trim();
-        if (genericTimestamp) lastUpdate = genericTimestamp;
-    }
-
-    $("table.table.fuel-home-block tbody tr").each((_i: number, el: any) => {
-        const row = $(el);
-        const fuelTypeElement = row.find("th span a");
-        const fuelType = fuelTypeElement.text().trim();
-        const priceElement = row.find("td strong");
-        const priceValue = cleanPrice(priceElement.text().trim());
-        const currencyUnit = (priceElement.get(0)?.nextSibling?.nodeValue?.trim() || "EGP").replace(/[\/\s-Litre]/gi, '').trim();
-
-
-        if (fuelType && priceValue) {
-            const fullPrice = `${priceValue} ${currencyUnit || 'EGP'}`;
-            prices[fuelType] = fullPrice;
-        }
-    });
-
-    if (Object.keys(prices).length === 0) {
-        console.warn("Sarf-Today Fuel: Could not find any fuel prices.");
-    }
-    return { prices, lastUpdate };
+    const data = await getParsedDataWithCache();
+    if (!Object.keys(data.goldPrices).length) throw new Error("No valid ForexFy gold prices");
+    return { prices: data.goldPrices, lastUpdate: data.goldDate };
 }
 
 export async function getFuelPrices(): Promise<FuelPrices> {
-    const cacheKey = "sarfToday_fuelPrices_v2";
-    try {
-        console.log("Attempting to fetch fuel prices from sarf-today.com");
-        const result = await scrapeSarfTodayWebsite(config.API_URLS.SARF_TODAY_CURRENCY_EXCHANGE, cacheKey, parseSarfTodayFuelPrices);
-
-        if (Object.keys(result.prices).length === 0) {
-            console.warn("Sarf-Today Fuel: No fuel data found/parsed. Returning N/A structure.");
-            result.lastUpdate = result.lastUpdate || getCurrentEgyptTime();
-        } else {
-            console.log("Successfully fetched fuel prices from sarf-today.com");
+    const cacheKey = "fuel";
+    const cached = getCachedData<FuelPrices>(cacheKey);
+    if (cached) return cached;
+    const html = await fetchText(config.API_URLS.SARF_TODAY_CURRENCY_EXCHANGE);
+    const $ = cheerio(html);
+    const prices: FuelData = {};
+    $("table.table.fuel-home-block tbody tr").each((_i, el) => {
+        const row = $(el);
+        const name = row.find("th span a").text().trim();
+        const priceElement = row.find("td strong");
+        const price = positiveNumber(cleanPrice(priceElement.text()));
+        const unit = priceElement.parent().text().replace(priceElement.text(), "").trim();
+        if (config.FUEL_TYPES.includes(name) && price !== undefined && unit === "EGP") {
+            prices[name] = `${price} EGP`;
         }
-        return result;
-    } catch (error) {
-        console.error("Error fetching fuel prices from sarf-today.com:", error);
-        return {
-            prices: {},
-            lastUpdate: getCurrentEgyptTime(),
-        };
-    }
+    });
+    if (!Object.keys(prices).length) throw new Error("No valid Sarf Today fuel prices");
+    const result = { prices, lastUpdate: UNKNOWN_DATE };
+    if (config.FUEL_TYPES.every((name) => prices[name])) setCachedData(cacheKey, result);
+    return result;
 }
-
 
 export async function convertCurrency(
     amount: number,

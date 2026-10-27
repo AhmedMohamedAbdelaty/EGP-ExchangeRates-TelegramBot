@@ -1,5 +1,7 @@
-import { MyContext } from "../bot.ts";
-import { getCurrencyPrices, convertCurrency } from "../services/api.ts";
+import type { MyContext } from "../bot.ts";
+import { getCurrencyPrices } from "../services/api.ts";
+import type { CurrencyData } from "../services/api.ts";
+import { config } from "../app_config.ts";
 import { getCurrencyConversionKeyboard } from "../keyboards/index.ts";
 
 /**
@@ -48,66 +50,46 @@ export async function handleOtherToEGPRequest(ctx: MyContext): Promise<void> {
     }
 }
 
-export async function handleCurrencyConversionText(ctx: MyContext): Promise<void> {
-    if (ctx.session.isOperationInProgress && !ctx.message?.text?.startsWith("/cancel")) {
-        return;
+function convertAtRates(amount: number, from: string, to: string, rates: Record<string, CurrencyData>, side: "Buy" | "Sell"): string {
+    const sourceRate = from === "EGP" ? 1 : Number(rates[from]?.[side]);
+    const targetRate = to === "EGP" ? 1 : Number(rates[to]?.[side]);
+    if (!Number.isFinite(sourceRate) || sourceRate <= 0 || !Number.isFinite(targetRate) || targetRate <= 0) {
+        return "بيانات السعر غير متوفرة";
     }
+    const result = amount * sourceRate / targetRate;
+    return Number.isFinite(result) ? `${Number(result.toFixed(2))} ${to}` : "بيانات السعر غير متوفرة";
+}
+
+export async function handleCurrencyConversionText(ctx: MyContext): Promise<void> {
+    if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
-    await ctx.replyWithChatAction("typing");
     try {
-        const text = ctx.message?.text;
-
-        if (!text) {
-            await ctx.reply("عذرًا، لم أتمكن من فهم طلبك");
+        await ctx.replyWithChatAction("typing");
+        const match = ctx.message?.text?.trim().match(/^(\d+(?:\.\d+)?)\s+([A-Z]{3})(?:\s+(?:to|إلى)\s+([A-Z]{3}))?$/i);
+        const amount = Number(match?.[1]);
+        const from = match?.[2].toUpperCase();
+        const target = match?.[3]?.toUpperCase();
+        const supported = ["EGP", ...config.CURRENCIES];
+        if (!match || !Number.isFinite(amount) || amount <= 0 || !from || !supported.includes(from) || (target && !supported.includes(target))) {
+            await ctx.reply("عذرًا، المبلغ أو العملة غير صالح. أدخل مبلغًا أكبر من الصفر وعملة مدعومة، مثل 150.75 USD أو 100 USD to EUR.");
             return;
         }
 
-        const upperText = text.toUpperCase();
-        const regex = /(\d+)(?:\s*)(EGP|USD|EUR|GBP|SAR|AED|KWD)/;
-        const match = upperText.match(regex);
-
-        if (!match) {
-            await ctx.reply("عذرًا، لم أتمكن من فهم طلبك");
-            return;
-        }
-
-        const amount = Number(match[1]);
-        const currency = match[2];
-        const lastPrices = await getCurrencyPrices();
-
-        if (!lastPrices) {
-            await ctx.reply("عذرًا، تعذر جلب أسعار الصرف الحالية. يرجى المحاولة مرة أخرى لاحقًا.\nSorry, could not fetch current exchange rates. Please try again later.");
-            return;
-        }
-
-        let message = `المبلغ المحول: ${amount} ${currency}`;
-
-        if (currency === "EGP") {
-            // Convert EGP to all other currencies
-            const currencies = ["USD", "EUR", "GBP", "SAR", "AED", "KWD"];
-
-            for (const targetCurrency of currencies) {
-            const sell = Number(lastPrices.bank[targetCurrency]?.Sell);
-            if (!sell) {
-            message += `\n${targetCurrency}: بيانات السعر غير متوفرة`;
-            continue;
-            }
-            const bankRate = Number((amount / sell).toFixed(2));
-            const blackRate = Number((amount / Number(lastPrices.blackMarket[targetCurrency]?.Sell)).toFixed(2));
-
-            message += `\n${targetCurrency}:
-بالبنك: ${bankRate}
-في السوق السوداء: ${blackRate}`;
-            }
+        const targets = target ? [target] : from === "EGP" ? config.CURRENCIES : ["EGP"];
+        let message = `المبلغ: ${amount} ${from}`;
+        // Identity conversion needs no market quote.
+        if (targets.length === 1 && targets[0] === from) {
+            message += `\n${amount} ${from}`;
         } else {
-            // Convert from other currency to EGP
-            const bankRate = Number((amount * Number(lastPrices.bank[currency]?.Buy)).toFixed(2));
-            const blackRate = Number((amount * Number(lastPrices.blackMarket[currency]?.Buy)).toFixed(2));
-
-            message += `\nبالبنك: ${bankRate} EGP
-في السوق السوداء: ${blackRate} EGP`;
+            const prices = await getCurrencyPrices();
+            message += "\nتقديرات حسب أسعار الشراء والبيع المنشورة، وليست أسعار تنفيذ.";
+            for (const to of targets) {
+                const estimate = (rates: Record<string, CurrencyData>) =>
+                    `حسب أسعار الشراء: ${convertAtRates(amount, from, to, rates, "Buy")}\n` +
+                    `حسب أسعار البيع: ${convertAtRates(amount, from, to, rates, "Sell")}`;
+                message += `\n${to}:\nالبنك:\n${estimate(prices.bank)}\nالسوق:\n${estimate(prices.blackMarket)}`;
+            }
         }
-
         await ctx.reply(message);
     } catch (error) {
         console.error("Error handling currency conversion text:", error);
@@ -116,10 +98,5 @@ export async function handleCurrencyConversionText(ctx: MyContext): Promise<void
         ctx.session.isOperationInProgress = false;
     }
 
-    // Show the conversion keyboard again
-    const keyboard = getCurrencyConversionKeyboard();
-    const followUpMessage = `ماذا ترغب في القيام به الآن؟`;
-    await ctx.reply(followUpMessage, {
-        reply_markup: keyboard,
-    });
+    await ctx.reply("ماذا ترغب في القيام به الآن؟", { reply_markup: getCurrencyConversionKeyboard() });
 }

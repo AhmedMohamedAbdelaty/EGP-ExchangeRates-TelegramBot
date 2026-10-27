@@ -1,5 +1,4 @@
 import { Keyboard, InlineKeyboard } from "../deps.deno.ts";
-import { config } from "../config.ts";
 
 export function getMainMenuKeyboard(): Keyboard {
     return new Keyboard()
@@ -20,7 +19,7 @@ export function getCurrencySummaryKeyboard(): Keyboard {
     return new Keyboard()
         .text("💵 أسعار العملات في البنك")
         .row()
-        .text("💰 أسعار العملات في السوق السوداء")
+        .text("💰 أسعار السوق")
         .row()
         .text("🔙 العودة إلى القائمة الرئيسية")
         .resized();

@@ -1,5 +1,6 @@
-import { MyContext } from "../bot.ts";
-import { getGoldPrices, GoldPriceEntry, getCurrentEgyptTime } from "../services/api.ts";
+import type { MyContext } from "../bot.ts";
+import { getGoldPrices } from "../services/api.ts";
+import type { GoldPriceEntry } from "../services/api.ts";
 import { getMainMenuKeyboard } from "../keyboards/index.ts";
 
 function formatGoldPrice(priceEntry?: GoldPriceEntry): string {
@@ -13,8 +14,8 @@ function formatGoldPrice(priceEntry?: GoldPriceEntry): string {
 export async function handleGoldPricesRequest(ctx: MyContext): Promise<void> {
     if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
-    await ctx.replyWithChatAction("typing");
     try {
+        await ctx.replyWithChatAction("typing");
         const lastPrices = await getGoldPrices();
 
         const message = `أسعار الذهب:
@@ -35,9 +36,7 @@ ${formatGoldPrice(lastPrices.prices["22k"])}
 ${formatGoldPrice(lastPrices.prices["Gold Ounce"])}
 
 الجنيه الذهب:
-${formatGoldPrice(lastPrices.prices["Gold Pound(Coin)"])}
-
-آخر تحديث: ${getCurrentEgyptTime()}`;
+${formatGoldPrice(lastPrices.prices["Gold Pound(Coin)"])}`;
 
         await ctx.reply(message);
 

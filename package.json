@@ -1,0 +1,25 @@
+{
+  "name": "telegrambot-deno-cloudflare",
+  "private": true,
+  "scripts": {
+    "cf:dev": "wrangler dev",
+    "cf:check": "wrangler deploy --dry-run --outdir /tmp/telegrambot-worker-build",
+    "cf:deploy": "wrangler deploy",
+    "cf:test": "node --test cloudflare/worker.test.mjs"
+  },
+  "dependencies": {
+    "@grammyjs/conversations": "2.1.0",
+    "cheerio": "1.0.0-rc.12",
+    "dotenv": "16.6.1",
+    "grammy": "1.36.1"
+  },
+  "devDependencies": {
+    "miniflare": "5.20261023.0-beta",
+    "typescript": "5.9.3",
+    "wrangler": "4.153.0"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "packageManager": "npm@12.2.1"
+}

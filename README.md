@@ -1,158 +1,29 @@
-# EGP Exchange Rates Telegram Bot 🇪🇬💱
+# EGP Exchange Rates Telegram Bot
 
-[![Deno](https://img.shields.io/badge/deno-v1.40+-black?logo=deno)](https://deno.land/)
-[![TypeScript](https://img.shields.io/badge/typescript-4.9+-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Grammy](https://img.shields.io/badge/grammy-v1.36+-green)](https://grammy.dev/)
+An Arabic-language Telegram bot for Egyptian currency, gold, and fuel prices. It reads ForexFy and Sarf Today, keeps favorite currencies, and supports amount conversion using the provider's labeled quotes.
 
-A modern Telegram bot for checking Egyptian Pound (EGP) exchange rates, fuel prices, and gold prices. Built with **Deno** and **TypeScript** for better performance, security, and developer experience.
+The repaired **test bot** is [@randombot_test_bot](https://t.me/randombot_test_bot). We did not use or change the separate production bot, `@EGP_Exchange_Bot`; its current webhook and historical data were not checked. Its former Deno Deploy Classic host is no longer available.
 
-## ✨ Features
+The test Worker is running at [egp-exchange-cloudflare-test.am0103738.workers.dev](https://egp-exchange-cloudflare-test.am0103738.workers.dev/health), and test data has been copied from Deno KV into its Durable Objects. Telegram delivery and provider-backed replies have been verified. Cloudflare is configured to build the `codex/cloudflare-test` branch of the linked GitHub repository; check the build history for deployment status.
 
-- 💱 **Real-time Exchange Rates**: USD, EUR, GBP, SAR and more currencies to EGP
-- ⛽ **Fuel Prices**: Current fuel prices in Egypt
-- 🥇 **Gold Prices**: Live gold prices in Egyptian market
-- 🔄 **Currency Conversion**: Convert between different currencies
-- 🎛️ **Admin Panel**: Web-based admin interface for bot management
-- 📊 **Multiple Sources**: Aggregates data from reliable financial sources
-- ⚡ **Fast & Secure**: Built with Deno for enhanced security and performance
+## Use the bot
 
-## 🚀 Quick Start
+Start with `/start` and use the menu. `/help` lists the commands. Use `/setfav USD` to toggle a favorite, `/myfavs` to list favorites, and the favorite-rates button to see their quotes. Enter `150.75 USD`, `100 EGP`, or `100 USD to EUR` to convert.
 
-### Prerequisites
+Conversion shows estimates using the data provider's **Buy** and **Sell** labels. These are indicative calculations, not confirmed transaction prices. A missing quote is reported as unavailable.
 
-- [Deno](https://deno.land/) v1.40 or higher
-- A Telegram Bot Token from [@BotFather](https://t.me/botfather)
+## Local setup
 
-### Installation
+1. Install Deno 2.9.3 or later, Node.js 24.22.1, and a separate Telegram test bot token. Run `npm ci` to install the pinned dependencies.
+2. Create `.env` in the project directory with `BOT_TOKEN=<test token>`. `deno task dev` switches that bot to polling by removing its webhook, so use it only with a token intended for local testing.
+3. Run `deno task dev` and send `/start` to the test bot. Stop the process with Ctrl+C.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot.git
-   cd EGP-ExchangeRates-TelegramBot
-   ```
+For the webhook server, also set `WEBHOOK_SECRET` to a random 1–256 character string containing only letters, numbers, `_`, and `-`, then run `deno task start`. The server listens on `PORT`, defaulting to 8000. It does not register or change a webhook at startup.
 
-2. **Set up environment variables**
-   ```bash
-   # Create .env file
-   cp .env.example .env
+`GET /health` reports HTTP server availability. Telegram updates go to `POST /webhook` and require the matching `X-Telegram-Bot-Api-Secret-Token` header. The old public message relay has been removed. For the local Deno server, set `ADMIN_DASHBOARD_TOKEN` to enable `GET /admin`; access requires `Authorization: Bearer <token>`. The Cloudflare Worker uses `ADMIN_SECRET` instead.
 
-   # Edit .env with your configuration
-   TELEGRAM_BOT_TOKEN=your_bot_token_here
-   ADMIN_SECRET=your_admin_secret_here
-   ```
+## Check and deploy
 
-3. **Run the bot**
-   ```bash
-   # Development mode with polling
-   deno task dev
+The [Cloudflare operations guide](docs/cloudflare-operations.md) covers local Worker tests, migration, deployment, and rollback. The migration helper resets `isOperationInProgress` to `false` in exported sessions. The Worker retains update deduplication records for at least seven days, pruning older records during later successful updates. A failure after a reply is sent but before the session and update marker commit can cause a duplicate reply on retry.
 
-   # Production mode with webhooks
-   deno task start
-   ```
-
-## 🛠️ Configuration
-
-The bot supports both **polling** and **webhook** modes:
-
-- **Polling** (`poll.ts`): For development and testing
-- **Webhook** (`server.ts`): For production deployment
-
-### Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | ✅ |
-| `ADMIN_SECRET` | Secret key for admin panel access | ✅ |
-| `WEBHOOK_URL` | Webhook URL for production | ⚠️ (webhook mode) |
-| `PORT` | Server port (default: 3000) | ❌ |
-
-## 📁 Project Structure
-
-```
-├── bot.ts                 # Main bot logic and handlers
-├── config.ts             # Configuration management
-├── server.ts             # Webhook server (production)
-├── poll.ts               # Polling server (development)
-├── admin_server.ts       # Admin panel server
-├── handlers/             # Command and callback handlers
-│   ├── commands.ts       # Bot commands
-│   ├── conversion.ts     # Currency conversion logic
-│   ├── currency.ts       # Exchange rates
-│   ├── fuel.ts          # Fuel prices
-│   └── gold.ts          # Gold prices
-├── services/            # External API services
-│   └── api.ts          # API clients and data fetching
-├── keyboards/           # Telegram inline keyboards
-│   └── index.ts        # Keyboard definitions
-└── deps.*.ts           # Dependency management
-```
-
-## 🎯 Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Initialize the bot and show welcome message |
-| `/help` | Display help information |
-| `/rates` | Show current exchange rates |
-| `/convert` | Start currency conversion |
-| `/fuel` | Get current fuel prices |
-| `/gold` | Check gold prices |
-
-## 🔧 Deployment
-
-### Deno Deploy
-
-1. Fork this repository
-2. Connect your GitHub account to [Deno Deploy](https://dash.deno.com/)
-3. Create a new project and link your repository
-4. Set environment variables in the project settings
-5. Deploy with the `server.ts` entry point
-
-### Docker
-
-```dockerfile
-FROM denoland/deno:latest
-
-WORKDIR /app
-COPY . .
-RUN deno cache server.ts
-
-EXPOSE 3000
-CMD ["deno", "run", "--allow-net", "--allow-read", "--allow-env", "--allow-write", "--unstable-kv", "server.ts"]
-```
-
-### Other Platforms
-
-The bot can be deployed on any platform that supports Deno:
-- Railway
-- Fly.io
-- Heroku (with Deno buildpack)
-- VPS with Deno runtime
-
-## 🔄 Migration Notice
-
-> **Note**: This repository was previously a JavaScript/Cloudflare Workers implementation. The original code has been preserved in the [`legacy-cloudflare-workers`](https://github.com/AhmedMohamedAbdelaty/EGP-ExchangeRates-TelegramBot/tree/legacy-cloudflare-workers) branch. The current version is a complete rewrite using Deno and TypeScript for better maintainability and performance.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Grammy](https://grammy.dev/) - The Telegram Bot Framework for Deno
-- [Deno](https://deno.land/) - A secure runtime for JavaScript and TypeScript
-- Exchange rate data providers and financial APIs
-
----
-
-⭐ If you find this project useful, please consider giving it a star!
+The [migration guide](docs/migration-cloudflare.md) describes how to copy a dedicated Deno KV test database and verify the result.

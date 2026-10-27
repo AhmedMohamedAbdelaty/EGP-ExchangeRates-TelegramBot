@@ -1,11 +1,11 @@
-import { MyContext } from "../bot.ts";
-import { getCurrencyPrices, getCurrentEgyptTime } from "../services/api.ts";
+import type { MyContext } from "../bot.ts";
+import { getCurrencyPrices } from "../services/api.ts";
 import {
     getCurrencySummaryKeyboard,
     getCurrencySelectionKeyboard,
     getMainMenuKeyboard
 } from "../keyboards/index.ts";
-import { config } from "../config.ts";
+import { config } from "../app_config.ts";
 
 function getCurrencyName(currency: string): string {
     const names: Record<string, string> = {
@@ -48,8 +48,8 @@ export async function handleSpecificCurrencyRequest(ctx: MyContext): Promise<voi
 export async function handleBankPricesRequest(ctx: MyContext): Promise<void> {
     if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
-    await ctx.replyWithChatAction("typing");
     try {
+        await ctx.replyWithChatAction("typing");
         const lastPrices = await getCurrencyPrices();
         let message = `أسعار العملات في البنك:\n`;
         let foundData = false;
@@ -68,7 +68,6 @@ export async function handleBankPricesRequest(ctx: MyContext): Promise<void> {
             message += "\nلا توجد بيانات أسعار بنكية متاحة حاليًا للعملات المحددة.";
         }
 
-        message += `\nآخر تحديث: ${getCurrentEgyptTime()}`;
         await ctx.reply(message, { reply_markup: getMainMenuKeyboard() });
     } catch (error) {
         console.error("Error handling bank prices request:", error);
@@ -81,10 +80,10 @@ export async function handleBankPricesRequest(ctx: MyContext): Promise<void> {
 export async function handleBlackMarketPricesRequest(ctx: MyContext): Promise<void> {
     if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
-    await ctx.replyWithChatAction("typing");
     try {
+        await ctx.replyWithChatAction("typing");
         const lastPrices = await getCurrencyPrices();
-        let message = `أسعار العملات في السوق السوداء:\n`;
+        let message = `أسعار العملات في السوق:\n`;
         let foundData = false;
 
         config.CURRENCIES.forEach(code => {
@@ -101,7 +100,6 @@ export async function handleBlackMarketPricesRequest(ctx: MyContext): Promise<vo
             message += "\nلا توجد بيانات أسعار سوق سوداء متاحة حاليًا للعملات المحددة.";
         }
 
-        message += `\nآخر تحديث: ${getCurrentEgyptTime()}`;
         await ctx.reply(message, { reply_markup: getMainMenuKeyboard() });
     } catch (error) {
         console.error("Error handling black market prices request:", error);
@@ -114,8 +112,8 @@ export async function handleBlackMarketPricesRequest(ctx: MyContext): Promise<vo
 export async function handleSpecificCurrency(ctx: MyContext, currency: string): Promise<void> {
     if (ctx.session.isOperationInProgress) return;
     ctx.session.isOperationInProgress = true;
-    await ctx.replyWithChatAction("typing");
     try {
+        await ctx.replyWithChatAction("typing");
         if (!config.CURRENCIES.includes(currency.toUpperCase())) {
             await ctx.reply(`عذرًا، العملة ${currency} غير مدعومة حاليًا.`, { reply_markup: getMainMenuKeyboard() });
             ctx.session.isOperationInProgress = false;
@@ -123,7 +121,6 @@ export async function handleSpecificCurrency(ctx: MyContext, currency: string): 
         }
 
         const lastPrices = await getCurrencyPrices();
-        const currentTime = getCurrentEgyptTime();
 
         const bankBuy = lastPrices.bank[currency]?.Buy || "N/A";
         const bankSell = lastPrices.bank[currency]?.Sell || "N/A";
@@ -133,7 +130,7 @@ export async function handleSpecificCurrency(ctx: MyContext, currency: string): 
         let messageText = `أسعار ${getCurrencyName(currency)} (${currency}):\n`;
 
         if (bankBuy !== "N/A" || bankSell !== "N/A") {
-            messageText += `\nفي البنك (آخر تحديث: ${currentTime}):
+            messageText += `\nفي البنك:
 شراء: ${bankBuy}
 بيع: ${bankSell}\n`;
         } else {
@@ -141,11 +138,11 @@ export async function handleSpecificCurrency(ctx: MyContext, currency: string): 
         }
 
         if (blackMarketBuy !== "N/A" || blackMarketSell !== "N/A") {
-            messageText += `\nفي السوق السوداء (آخر تحديث: ${currentTime}):
+            messageText += `\nفي السوق:
 شراء: ${blackMarketBuy}
 بيع: ${blackMarketSell}`;
         } else {
-            messageText += `\nأسعار السوق السوداء لـ ${getCurrencyName(currency)} غير متاحة حاليًا.`;
+            messageText += `\nأسعار السوق لـ ${getCurrencyName(currency)} غير متاحة حاليًا.`;
         }
 
         await ctx.reply(messageText, { reply_markup: getMainMenuKeyboard() });
@@ -159,11 +156,6 @@ export async function handleSpecificCurrency(ctx: MyContext, currency: string): 
 }
 
 export async function handleBackToMainMenu(ctx: MyContext): Promise<void> {
-    if (ctx.session.isOperationInProgress) {
-        if (ctx.callbackQuery?.data === "main_menu_callback") {
-            try { await ctx.answerCallbackQuery(); } catch {/* ignore */ }
-        }
-    }
     await ctx.replyWithChatAction("typing");
     const mainMenu = getMainMenuKeyboard();
     const message = `ماذا ترغب في القيام به الآن؟`;
