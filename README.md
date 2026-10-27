@@ -4,7 +4,7 @@ An Arabic-language Telegram bot for Egyptian currency, gold, and fuel prices. It
 
 The repaired **test bot** is [@randombot_test_bot](https://t.me/randombot_test_bot). We did not use or change the separate production bot, `@EGP_Exchange_Bot`; its current webhook and historical data were not checked. Its former Deno Deploy Classic host is no longer available.
 
-The test Worker is running at [egp-exchange-cloudflare-test.am0103738.workers.dev](https://egp-exchange-cloudflare-test.am0103738.workers.dev/health), and test data has been copied from Deno KV into its Durable Objects. Health and copied data do not establish Telegram delivery. The source remains in the local working tree; GitHub automatic builds have not been confirmed.
+The test Worker is running at [egp-exchange-cloudflare-test.am0103738.workers.dev](https://egp-exchange-cloudflare-test.am0103738.workers.dev/health), and test data has been copied from Deno KV into its Durable Objects. Telegram delivery and provider-backed replies have been verified. Cloudflare is configured to build the `codex/cloudflare-test` branch of the linked GitHub repository; check the build history for deployment status.
 
 ## Use the bot
 
