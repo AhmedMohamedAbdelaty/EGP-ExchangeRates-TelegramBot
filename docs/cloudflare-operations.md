@@ -29,6 +29,10 @@ The Cloudflare helper reads `BOT_TOKEN`, `WEBHOOK_SECRET`, and `ADMIN_SECRET` fr
 
 The existing `scripts/register_test_webhook.py` targets the Deno test endpoint and refuses a different configured webhook. Do not use it unchanged for a Cloudflare cutover. Telegram allows only one webhook per bot, so registration moves delivery away from the previous host.
 
+### Rotate the test token
+
+Revoke the test bot token through BotFather, then update the encrypted `BOT_TOKEN` runtime secret in the test Worker's Cloudflare settings. Update the owner-only test credentials file with the new token as well; never put it in Git. Telegram may clear the webhook when a token is revoked, so run `python3 scripts/cloudflare_test.py register` and then `python3 scripts/cloudflare_test.py status`. Confirm a reply after the change. The separate production bot requires its own credentials and deployment plan.
+
 Cloudflare references: [Git integration](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/), [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [build image](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/), and [secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
 
 ## Migrating data
