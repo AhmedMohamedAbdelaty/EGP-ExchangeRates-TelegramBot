@@ -23,6 +23,8 @@ The test Worker, `egp-exchange-cloudflare-test`, and its bot, secrets, webhook, 
 
 For GitHub integration, restrict Cloudflare's GitHub access to the intended repository and grant only the access needed for builds. Protect the selected branch. In the **production** Worker's Builds settings, select that repository and branch, the repository root, build command `npm run cf:test`, and deploy command `npm run cf:deploy:production`. Set the build variable `NODE_VERSION=24.22.1`; runtime secrets belong in the Worker's secrets settings, not build variables. Disable preview builds until separately scoped credentials and storage are configured. Saving build settings or pushing to the selected branch can deploy; verify the selected Worker, account, branch, and revision before enabling the integration.
 
+The root `wrangler.jsonc` belongs to the test Worker. Cloudflare may suggest changing its name to match production; do not accept that suggestion. The production deploy command explicitly selects `wrangler.production.jsonc`. Verify both Workers' build results after changes to the shared branch.
+
 For a deliberate manual deployment, use `npm run cf:deploy:production` from the reviewed revision with the intended Cloudflare account selected. It publishes the Worker; it does not register a Telegram webhook. Confirm the deployed version and hostname in Cloudflare. Check `GET /health` on that hostname; an OK response shows availability only, not Telegram delivery or provider health.
 
 The production helper is pinned to `https://egp-exchange-production.am0103738.workers.dev` and its `/webhook` path. Verify that this is the actual production origin before using it; do not change the test Worker's configuration to match it.
